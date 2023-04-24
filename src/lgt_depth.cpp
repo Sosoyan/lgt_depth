@@ -34,7 +34,7 @@ shader_evaluate
 	AtLightSample ls;
 	AiLightsPrepare(sg);
 
-	AtRGB result = AtRGB(0.0f, 0.0f, 0.0f);
+	AtRGB result = AtRGB(0.f, 0.f, 0.f);
 	
 	for (unsigned int i=0; i < sg->nlights; i++)
 	{
