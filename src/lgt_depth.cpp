@@ -1,7 +1,3 @@
-// lgt_depth
-// By Vahan Sosoyan
-// Open sourced under the MIT license
-
 #include <ai.h>
 
 AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
