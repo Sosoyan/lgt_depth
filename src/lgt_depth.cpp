@@ -1,3 +1,7 @@
+// lgt_depth
+// By Vahan Sosoyan
+// Open sourced under the MIT license
+
 #include <ai.h>
 
 AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
@@ -31,44 +35,38 @@ shader_evaluate
 	bool write_light_aovs = AiShaderEvalParamBool(p_write_light_aovs);
 	float scale = AiShaderEvalParamFlt(p_scale);
 
-	AiLightsPrepare(sg);
 	AtLightSample ls;
+	AiLightsPrepare(sg);
 
 	AtRGB result = AtRGB(0.0f, 0.0f, 0.0f);
 	
-	for (int i=0; i < sg->nlights; i++)
+	for (unsigned int i=0; i < sg->nlights; i++)
 	{
 		AtNode* lp = sg->lights[i];
 
 		AtMatrix lgt_mat = AiNodeGetMatrix(lp, AtString("matrix"));
-		AtVector lgt_pos = AtVector(lgt_mat[3][0], 
-									lgt_mat[3][1], 
-									lgt_mat[3][2]);
+		AtVector lgt_pos = AtVector(lgt_mat[3][0],
+					    lgt_mat[3][1],
+					    lgt_mat[3][2]);
 
 		float dist = AiV3Length(lgt_pos - sg->P);
 		
-		AtRGB lgt_depth = AtRGB(dist, dist, dist);
+		AtRGB lgt_depth = AtRGB(dist, 1.f, 0.f);
 		
+		while (AiLightsGetSample(sg, ls))
+		{
+			if (lp == ls.Lp)
+			{
+				lgt_depth.g = 0.f;
+				lgt_depth.b = ls.Lo.r;
+			}
+		}
+
 		if (write_light_aovs)
 		{
 			AtString aov = AiNodeGetStr(lp, AtString("aov"));
 			AiAOVSetRGB(sg, AtString(aov), lgt_depth);
 		}
-
-		result += lgt_depth;
-	}
-
-// 	while (AiLightsGetSample(sg, ls))
-// 	{
-// 		float dist = ls.Ldist * scale;
-		
-// 		AtRGB lgt_depth = AtRGB(dist, dist, dist);
-	 
-// 		if (write_light_aovs)
-// 		{
-// 			AtString aov = AiNodeGetStr(ls.Lp, AtString("aov"));
-// 			AiAOVSetRGB(sg, AtString(aov), lgt_depth);
-// 		}
 
 		result += lgt_depth;
 	}
