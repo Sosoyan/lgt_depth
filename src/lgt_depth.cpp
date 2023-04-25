@@ -5,12 +5,14 @@ AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
 enum params
 {
 	p_write_light_aovs,
+	p_output_shodows,
 	p_scale,
 };
 
 node_parameters
-{ 
+{
 	AiParameterBool("write_light_aovs", true);
+	AiParameterBool("output_shadows", false);
 	AiParameterFlt("scale", 1.0f);
 }
 
@@ -29,32 +31,38 @@ node_finish
 shader_evaluate
 {
 	bool write_light_aovs = AiShaderEvalParamBool(p_write_light_aovs);
+	bool output_shadows = AiShaderEvalParamBool(p_output_shodows);
 	float scale = AiShaderEvalParamFlt(p_scale);
 
 	AtLightSample ls;
 	AiLightsPrepare(sg);
 
 	AtRGB result = AtRGB(0.f, 0.f, 0.f);
-	
-	for (unsigned int i=0; i < sg->nlights; i++)
+
+	for (unsigned int i = 0; i < sg->nlights; i++)
 	{
 		AtNode* lp = sg->lights[i];
 
 		AtMatrix lgt_mat = AiNodeGetMatrix(lp, AtString("matrix"));
 		AtVector lgt_pos = AtVector(lgt_mat[3][0],
-					    lgt_mat[3][1],
-					    lgt_mat[3][2]);
+									lgt_mat[3][1],
+									lgt_mat[3][2]);
 
-		float dist = AiV3Length(lgt_pos - sg->P);
-		
-		AtRGB lgt_depth = AtRGB(dist, 1.f, 0.f);
-		
-		while (AiLightsGetSample(sg, ls))
+		float dist = AiV3Length(sg->P - lgt_pos) * scale;
+
+		AtRGB lgt_depth = AtRGB(dist, 0.f, 0.f);
+
+		if (output_shadows)
 		{
-			if (lp == ls.Lp)
+			lgt_depth = AtRGB(dist, 1.f, 0.f);
+
+			while (AiLightsGetSample(sg, ls))
 			{
-				lgt_depth.g = 0.f;
-				lgt_depth.b = ls.Lo.r;
+				if (lp == ls.Lp)
+				{
+					lgt_depth.g = 0.f;
+					lgt_depth.b = ls.Lo.r;
+				}
 			}
 		}
 
@@ -73,12 +81,12 @@ shader_evaluate
 node_loader
 {
    if (i > 0)
-      return false;
+	  return false;
 
-   node->methods     = lgt_depth_methods;
+   node->methods = lgt_depth_methods;
    node->output_type = AI_TYPE_RGB;
-   node->name        = "lgt_depth";
-   node->node_type   = AI_NODE_SHADER;
+   node->name = "lgt_depth";
+   node->node_type = AI_NODE_SHADER;
    strcpy_s(node->version, AI_VERSION);
    return true;
-} 
+}
