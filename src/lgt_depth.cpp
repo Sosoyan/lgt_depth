@@ -5,14 +5,12 @@ AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
 enum params
 {
 	p_write_light_aovs,
-	p_output_shodows,
 	p_scale,
 };
 
 node_parameters
 {
 	AiParameterBool("write_light_aovs", true);
-	AiParameterBool("output_shadows", false);
 	AiParameterFlt("scale", 1.0f);
 }
 
@@ -31,7 +29,6 @@ node_finish
 shader_evaluate
 {
 	bool write_light_aovs = AiShaderEvalParamBool(p_write_light_aovs);
-	bool output_shadows = AiShaderEvalParamBool(p_output_shodows);
 	float scale = AiShaderEvalParamFlt(p_scale);
 
 	AtLightSample ls;
@@ -51,20 +48,6 @@ shader_evaluate
 		float dist = AiV3Length(sg->P - lgt_pos) * scale;
 
 		AtRGB lgt_depth = AtRGB(dist, 0.f, 0.f);
-
-		if (output_shadows)
-		{
-			lgt_depth = AtRGB(dist, 1.f, 0.f);
-
-			while (AiLightsGetSample(sg, ls))
-			{
-				if (lp == ls.Lp)
-				{
-					lgt_depth.g = 0.f;
-					lgt_depth.b = ls.Lo.r;
-				}
-			}
-		}
 
 		if (write_light_aovs)
 		{
