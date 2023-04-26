@@ -87,6 +87,12 @@ node_loader
    node->output_type = AI_TYPE_RGB;
    node->name = "lgt_depth";
    node->node_type = AI_NODE_SHADER;
+
+#ifdef _WIN32
    strcpy_s(node->version, AI_VERSION);
+#else
+   strcpy(node->version, AI_VERSION);
+#endif
+
    return true;
 }
