@@ -1,4 +1,5 @@
 #include <ai.h>
+#include <vector>
 
 AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
 
@@ -8,54 +9,99 @@ enum params
 	p_scale,
 };
 
+struct ShaderData
+{
+	std::vector<std::vector<AtNode*>> lgt_groups;
+};
+
 node_parameters
 {
 	AiParameterBool("write_light_aovs", true);
-	AiParameterFlt("scale", 1.0f);
+	AiParameterFlt("scale", 1.f);
 }
 
 node_initialize
 {
+	ShaderData* data = new ShaderData;
+	AiNodeSetLocalData(node, data);
 }
 
 node_update
 {
+	ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
+	AtUniverse* uni = AiRenderSessionGetUniverse(render_session);
+	AtNodeIterator* lgt_iter = AiUniverseGetNodeIterator(uni, AI_NODE_LIGHT);
+
+	std::vector<AtString> groups;
+	data->lgt_groups = std::vector<std::vector<AtNode*>>();
+
+	while (!AiNodeIteratorFinished(lgt_iter))
+	{
+		AtNode* lp = AiNodeIteratorGetNext(lgt_iter);
+		AtString name = AiNodeGetStr(lp, AtString("aov"));
+
+		auto it = std::find(groups.begin(), groups.end(), name);
+
+		if (it != groups.end())
+		{
+			int64_t index = std::distance(groups.begin(), it);
+			data->lgt_groups[index].push_back(lp);
+		}
+		else
+		{
+			groups.push_back(name);
+			data->lgt_groups.push_back(std::vector<AtNode*>{ lp });
+		}
+	}
+
+	AiNodeIteratorDestroy(lgt_iter);
 }
 
 node_finish
 {
+	if (AiNodeGetLocalData(node)) 
+	{
+		ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
+		data->lgt_groups = std::vector<std::vector<AtNode*>>();
+		AiNodeSetLocalData(node, NULL);
+		delete data;
+	}
 }
 
 shader_evaluate
 {
+	ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
+
 	bool write_light_aovs = AiShaderEvalParamBool(p_write_light_aovs);
 	float scale = AiShaderEvalParamFlt(p_scale);
 
-	AtLightSample ls;
-	AiLightsPrepare(sg);
-
 	AtRGB result = AtRGB(0.f, 0.f, 0.f);
 
-	for (unsigned int i = 0; i < sg->nlights; i++)
+	for (int i = 0; i < data->lgt_groups.size(); ++i)
 	{
-		AtNode* lp = sg->lights[i];
+		AtRGB lgt_group = AtRGB(0.f, 0.f, 0.f);
 
-		AtMatrix lgt_mat = AiNodeGetMatrix(lp, AtString("matrix"));
-		AtVector lgt_pos = AtVector(lgt_mat[3][0],
-									lgt_mat[3][1],
-									lgt_mat[3][2]);
+		std::vector<AtNode*>& lights = data->lgt_groups[i];
 
-		float dist = AiV3Length(sg->P - lgt_pos) * scale;
+		for (int j = 0; j < lights.size(); ++j)
+		{	
+			AtMatrix lgt_mat = AiNodeGetMatrix(lights[j], AtString("matrix"));
+			AtVector lgt_pos = AtVector(lgt_mat[3][0],
+										lgt_mat[3][1],
+										lgt_mat[3][2]);
 
-		AtRGB lgt_depth = AtRGB(dist, 0.f, 0.f);
+			float dist = AiV3Length(sg->P - lgt_pos) * scale;
 
+			lgt_group.r = (j == 0) ? dist : AiMin(lgt_group.r, dist);
+		}
+		
 		if (write_light_aovs)
 		{
-			AtString aov = AiNodeGetStr(lp, AtString("aov"));
-			AiAOVSetRGB(sg, AtString(aov), lgt_depth);
+			AtString aov = AiNodeGetStr(lights[0], AtString("aov"));
+			AiAOVSetRGB(sg, AtString(aov), lgt_group);
 		}
 
-		result += lgt_depth;
+		result += lgt_group;
 	}
 
 	sg->out.RGB() = result;
