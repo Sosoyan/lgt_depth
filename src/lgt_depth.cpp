@@ -1,5 +1,6 @@
 #include <ai.h>
 #include <vector>
+#include <algorithm>
 
 AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
 
@@ -29,8 +30,8 @@ node_initialize
 node_update
 {
 	ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
-	AtUniverse* uni = AiRenderSessionGetUniverse(render_session);
-	AtNodeIterator* lgt_iter = AiUniverseGetNodeIterator(uni, AI_NODE_LIGHT);
+	AtUniverse* universe = AiRenderSessionGetUniverse(render_session);
+	AtNodeIterator* lgt_iter = AiUniverseGetNodeIterator(universe, AI_NODE_LIGHT);
 
 	std::vector<AtString> groups;
 	data->lgt_groups = std::vector<std::vector<AtNode*>>();
@@ -40,7 +41,7 @@ node_update
 		AtNode* lp = AiNodeIteratorGetNext(lgt_iter);
 		AtString name = AiNodeGetStr(lp, AtString("aov"));
 
-		auto it = std::find(groups.begin(), groups.end(), name);
+		std::vector<AtString>::iterator it = std::find(groups.begin(), groups.end(), name);
 
 		if (it != groups.end())
 		{
@@ -59,7 +60,7 @@ node_update
 
 node_finish
 {
-	if (AiNodeGetLocalData(node)) 
+	if (AiNodeGetLocalData(node))
 	{
 		ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
 		data->lgt_groups = std::vector<std::vector<AtNode*>>();
@@ -84,7 +85,7 @@ shader_evaluate
 		std::vector<AtNode*>& lights = data->lgt_groups[i];
 
 		for (int j = 0; j < lights.size(); ++j)
-		{	
+		{
 			AtMatrix lgt_mat = AiNodeGetMatrix(lights[j], AtString("matrix"));
 			AtVector lgt_pos = AtVector(lgt_mat[3][0],
 										lgt_mat[3][1],
@@ -94,7 +95,7 @@ shader_evaluate
 
 			lgt_group.r = (j == 0) ? dist : AiMin(lgt_group.r, dist);
 		}
-		
+
 		if (write_light_aovs)
 		{
 			AtString aov = AiNodeGetStr(lights[0], AtString("aov"));
