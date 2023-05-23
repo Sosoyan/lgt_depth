@@ -32,7 +32,7 @@ node_initialize
 node_update
 {
 	ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
-	AtUniverse* universe = AiRenderSessionGetUniverse(render_session);
+	AtUniverse* universe = AiNodeGetUniverse(node);
 	AtNodeIterator* lgt_iter = AiUniverseGetNodeIterator(universe, AI_NODE_LIGHT);
 
 	std::vector<AtString> groups;
