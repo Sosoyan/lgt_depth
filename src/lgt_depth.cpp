@@ -7,6 +7,7 @@ AI_SHADER_NODE_EXPORT_METHODS(lgt_depth_methods);
 enum params
 {
 	p_write_light_aovs,
+	p_invert,
 	p_scale,
 };
 
@@ -18,6 +19,7 @@ struct ShaderData
 node_parameters
 {
 	AiParameterBool("write_light_aovs", true);
+	AiParameterBool("invert", false);
 	AiParameterFlt("scale", 1.f);
 }
 
@@ -74,6 +76,7 @@ shader_evaluate
 	ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
 
 	bool write_light_aovs = AiShaderEvalParamBool(p_write_light_aovs);
+	bool invert = AiShaderEvalParamBool(p_invert);
 	float scale = AiShaderEvalParamFlt(p_scale);
 
 	AtRGB result = AtRGB(0.f, 0.f, 0.f);
@@ -93,7 +96,17 @@ shader_evaluate
 
 			float dist = AiV3Length(sg->P - lgt_pos) * scale;
 
-			lgt_group.r = (j == 0) ? dist : AiMin(lgt_group.r, dist);
+			if (invert)
+			{
+				if (dist != 0)
+					dist = 1.f / dist;
+
+				lgt_group.r = (j == 0) ? dist : AiMax(lgt_group.r, dist);
+			}
+			else
+			{
+				lgt_group.r = (j == 0) ? dist : AiMin(lgt_group.r, dist);
+			}
 		}
 
 		if (write_light_aovs)
